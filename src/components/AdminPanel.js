@@ -13,13 +13,11 @@ import {
 } from 'firebase/firestore';
 
 function AdminPanel() {
-  // ========== الحالات ==========
   const [transactions, setTransactions] = useState([]);
   const [deletedTransactions, setDeletedTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('active');
 
-  // ========== حالة الإضافة ==========
   const [newTransaction, setNewTransaction] = useState({
     type: 'export',
     amount: '',
@@ -27,11 +25,9 @@ function AdminPanel() {
     date: new Date().toISOString().split('T')[0]
   });
 
-  // ========== حالة التعديل ==========
   const [editingTransaction, setEditingTransaction] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
 
-  // ========== جلب البيانات من Firebase ==========
   useEffect(() => {
     const q = query(collection(db, 'transactions'), orderBy('date', 'desc'));
     
@@ -56,7 +52,6 @@ function AdminPanel() {
     return () => unsubscribe();
   }, []);
 
-  // ========== دالة إضافة معاملة ==========
   const handleAdd = async () => {
     if (!newTransaction.amount || !newTransaction.description) {
       alert('من فضلك اكتب المبلغ والوصف');
@@ -84,7 +79,6 @@ function AdminPanel() {
     }
   };
 
-  // ========== دالة حذف (تروح للسلة) ==========
   const handleSoftDelete = async (id) => {
     if (window.confirm('هل أنت متأكد من حذف هذه المعاملة؟')) {
       try {
@@ -98,7 +92,6 @@ function AdminPanel() {
     }
   };
 
-  // ========== دالة استعادة من السلة ==========
   const handleRestore = async (id) => {
     try {
       await updateDoc(doc(db, 'transactions', id), {
@@ -110,7 +103,6 @@ function AdminPanel() {
     }
   };
 
-  // ========== دالة حذف نهائي ==========
   const handlePermanentDelete = async (id) => {
     if (window.confirm('هل أنت متأكد من حذف هذه المعاملة نهائياً؟')) {
       try {
@@ -121,13 +113,11 @@ function AdminPanel() {
     }
   };
 
-  // ========== دالة تعديل ==========
   const handleEdit = (transaction) => {
     setEditingTransaction({ ...transaction });
     setShowEditModal(true);
   };
 
-  // ========== دالة حفظ التعديل ==========
   const handleSaveEdit = async () => {
     if (!editingTransaction.amount || !editingTransaction.description) {
       alert('من فضلك اكتب المبلغ والوصف');
@@ -149,14 +139,9 @@ function AdminPanel() {
     }
   };
 
-  // ========== عرض المعاملات حسب النوع ==========
   const getFilteredTransactions = (type) => {
     return transactions.filter(t => t.type === type);
   };
-
-  // ========== حساب الإحصائيات ==========
-  const totalExports = transactions.filter(t => t.type === 'export').reduce((sum, t) => sum + t.amount, 0);
-  const totalImports = transactions.filter(t => t.type === 'import').reduce((sum, t) => sum + t.amount, 0);
 
   if (loading) {
     return (
@@ -174,7 +159,6 @@ function AdminPanel() {
     }}>
       <Container fluid style={{ direction: 'rtl' }}>
         <Row>
-          {/* ===== العمود الأيسر ===== */}
           <Col md={4}>
             <Card className="shadow-lg border-0 mb-4" style={{ borderRadius: '15px', overflow: 'hidden' }}>
               <div style={{ 
@@ -281,7 +265,6 @@ function AdminPanel() {
             </Card>
           </Col>
 
-          {/* ===== العمود الأيمن ===== */}
           <Col md={8}>
             <Card className="shadow-lg border-0" style={{ borderRadius: '15px', overflow: 'hidden' }}>
               <div style={{ 
@@ -316,7 +299,6 @@ function AdminPanel() {
                       </div>
                     ) : (
                       <>
-                        {/* الصادرات */}
                         {getFilteredTransactions('export').length > 0 && (
                           <>
                             <h6 className="mb-3" style={{ color: '#00b894', fontWeight: 'bold' }}>📤 الصادرات</h6>
@@ -352,7 +334,6 @@ function AdminPanel() {
                           </>
                         )}
 
-                        {/* الواردات */}
                         {getFilteredTransactions('import').length > 0 && (
                           <>
                             <h6 className="mb-3" style={{ color: '#fdcb6e', fontWeight: 'bold' }}>📥 الواردات</h6>
@@ -441,7 +422,6 @@ function AdminPanel() {
         </Row>
       </Container>
 
-      {/* ===== نافذة التعديل ===== */}
       <Modal show={showEditModal} onHide={() => setShowEditModal(false)} centered>
         <Modal.Header closeButton style={{ background: '#1a1a2e', color: 'white' }}>
           <Modal.Title>✏️ تعديل المعاملة</Modal.Title>
