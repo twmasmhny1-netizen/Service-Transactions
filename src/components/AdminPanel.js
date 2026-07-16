@@ -197,7 +197,7 @@ function AdminPanel() {
                     <Form.Label style={{ fontWeight: 'bold' }}>الوصف</Form.Label>
                     <Form.Control
                       type="text"
-                      placeholder="مثال: شحنة أجهزة كمبيوتر"
+                      placeholder="مثال: دفع فاتورة"
                       value={newTransaction.description}
                       onChange={(e) => setNewTransaction({...newTransaction, description: e.target.value})}
                       style={{ borderRadius: '10px', border: '2px solid #dfe6e9' }}
