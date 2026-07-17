@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Container, Row, Col, Card, Table, Badge, Form, Button } from 'react-bootstrap';
 import { db } from '../firebase';
 import { 
@@ -11,18 +11,19 @@ import {
 } from 'firebase/firestore';
 
 function ManagerPanel() {
-  // ========== الحالات ==========
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [notes, setNotes] = useState({});
   const [noteText, setNoteText] = useState('');
   const [selectedTransactionId, setSelectedTransactionId] = useState(null);
 
-  // ========== الفلترة ==========
   const [filterType, setFilterType] = useState('all');
   const [selectedMonth, setSelectedMonth] = useState('');
+  const [filterStartDate, setFilterStartDate] = useState('');
+  const [filterEndDate, setFilterEndDate] = useState('');
 
-  // ========== جلب البيانات من Firebase ==========
+  const printRef = useRef();
+
   useEffect(() => {
     const q = query(
       collection(db, 'transactions'), 
@@ -42,7 +43,6 @@ function ManagerPanel() {
     return () => unsubscribe();
   }, []);
 
-  // ========== تحميل الملاحظات من Firebase ==========
   useEffect(() => {
     const q = query(collection(db, 'notes'), orderBy('createdAt', 'desc'));
     
@@ -58,7 +58,6 @@ function ManagerPanel() {
     return () => unsubscribe();
   }, []);
 
-  // ========== دالة إرسال ملاحظة ==========
   const handleSendNote = async (transactionId) => {
     if (!noteText.trim()) {
       alert('من فضلك اكتب الملاحظة');
@@ -79,7 +78,6 @@ function ManagerPanel() {
     }
   };
 
-  // ========== استخراج الأشهر المتاحة ==========
   const getAvailableMonths = () => {
     const monthsSet = new Set();
     transactions.forEach(t => {
@@ -91,7 +89,6 @@ function ManagerPanel() {
     return Array.from(monthsSet).sort().reverse();
   };
 
-  // ========== دالة فلترة المعاملات ==========
   const getFilteredTransactions = () => {
     let filtered = transactions;
 
@@ -103,15 +100,25 @@ function ManagerPanel() {
       filtered = filtered.filter(t => t.date && t.date.startsWith(selectedMonth));
     }
 
+    if (filterStartDate) {
+      filtered = filtered.filter(t => t.date >= filterStartDate);
+    }
+    if (filterEndDate) {
+      filtered = filtered.filter(t => t.date <= filterEndDate);
+    }
+
     return filtered;
   };
 
   const filteredTransactions = getFilteredTransactions();
 
-  // ========== حساب الإحصائيات ==========
   const totalExports = filteredTransactions.filter(t => t.type === 'export').reduce((sum, t) => sum + t.amount, 0);
   const totalImports = filteredTransactions.filter(t => t.type === 'import').reduce((sum, t) => sum + t.amount, 0);
   const totalBalance = totalExports - totalImports;
+
+  const handlePrint = () => {
+    window.print();
+  };
 
   if (loading) {
     return (
@@ -122,7 +129,7 @@ function ManagerPanel() {
   }
 
   return (
-    <div style={{ 
+    <div ref={printRef} style={{ 
       background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
       minHeight: '100vh',
       padding: '20px 0'
@@ -137,12 +144,25 @@ function ManagerPanel() {
                 padding: '25px 30px',
                 color: 'white'
               }}>
-                <h4 className="mb-0" style={{ fontWeight: 'bold' }}>
-                  📊 لوحة تحليل المعاملات اليومية
-                </h4>
-                <p className="mb-0" style={{ opacity: 0.8, fontSize: '14px' }}>
-                  عرض وتحليل شامل لجميع المعاملات المسجلة
-                </p>
+                <div className="d-flex justify-content-between align-items-center">
+                  <div>
+                    <h4 className="mb-0" style={{ fontWeight: 'bold' }}>
+                      📊 لوحة تحليل المعاملات اليومية
+                    </h4>
+                    <p className="mb-0" style={{ opacity: 0.8, fontSize: '14px' }}>
+                      عرض وتحليل شامل لجميع المعاملات المسجلة
+                    </p>
+                  </div>
+                  <div className="d-flex gap-2 no-print">
+                    <Button 
+                      variant="light" 
+                      onClick={handlePrint}
+                      style={{ borderRadius: '10px', fontWeight: 'bold' }}
+                    >
+                      🖨️ طباعة وحفظ
+                    </Button>
+                  </div>
+                </div>
               </div>
               <Card.Body className="p-4">
                 {/* ===== بطاقات الإحصائيات ===== */}
@@ -171,8 +191,8 @@ function ManagerPanel() {
                 </Row>
 
                 {/* ===== أدوات الفلترة ===== */}
-                <Row className="g-3 align-items-end">
-                  <Col md={4}>
+                <Row className="g-3 align-items-end no-print">
+                  <Col md={3}>
                     <Form.Group>
                       <Form.Label style={{ fontWeight: 'bold', color: '#2d3436' }}>نوع المعاملة</Form.Label>
                       <Form.Select
@@ -186,7 +206,7 @@ function ManagerPanel() {
                       </Form.Select>
                     </Form.Group>
                   </Col>
-                  <Col md={4}>
+                  <Col md={3}>
                     <Form.Group>
                       <Form.Label style={{ fontWeight: 'bold', color: '#2d3436' }}>اختر الشهر</Form.Label>
                       <Form.Select
@@ -207,14 +227,39 @@ function ManagerPanel() {
                       </Form.Select>
                     </Form.Group>
                   </Col>
-                  <Col md={4}>
+                  <Col md={3}>
+                    <Form.Group>
+                      <Form.Label style={{ fontWeight: 'bold', color: '#2d3436' }}>من تاريخ</Form.Label>
+                      <Form.Control
+                        type="date"
+                        value={filterStartDate}
+                        onChange={(e) => setFilterStartDate(e.target.value)}
+                        style={{ borderRadius: '10px', border: '2px solid #dfe6e9' }}
+                      />
+                    </Form.Group>
+                  </Col>
+                  <Col md={3}>
+                    <Form.Group>
+                      <Form.Label style={{ fontWeight: 'bold', color: '#2d3436' }}>إلى تاريخ</Form.Label>
+                      <Form.Control
+                        type="date"
+                        value={filterEndDate}
+                        onChange={(e) => setFilterEndDate(e.target.value)}
+                        style={{ borderRadius: '10px', border: '2px solid #dfe6e9' }}
+                      />
+                    </Form.Group>
+                  </Col>
+                </Row>
+                <Row className="mt-3 no-print">
+                  <Col>
                     <Button
                       variant="secondary"
                       onClick={() => {
                         setFilterType('all');
                         setSelectedMonth('');
+                        setFilterStartDate('');
+                        setFilterEndDate('');
                       }}
-                      className="w-100"
                       style={{ borderRadius: '10px', fontWeight: 'bold' }}
                     >
                       🔄 إعادة تعيين الفلترة
@@ -281,52 +326,54 @@ function ManagerPanel() {
                                 </div>
                               )}
                               
-                              {selectedTransactionId === t.id ? (
-                                <div>
-                                  <Form.Control
-                                    as="textarea"
-                                    rows={2}
-                                    placeholder="اكتب ملاحظتك هنا..."
-                                    value={noteText}
-                                    onChange={(e) => setNoteText(e.target.value)}
-                                    className="mb-2"
-                                    style={{ borderRadius: '8px', border: '2px solid #3498db' }}
-                                  />
-                                  <div className="d-flex gap-2">
-                                    <Button
-                                      variant="primary"
-                                      size="sm"
-                                      onClick={() => handleSendNote(t.id)}
-                                      style={{ borderRadius: '8px', fontWeight: 'bold' }}
-                                    >
-                                      ✅ إرسال
-                                    </Button>
-                                    <Button
-                                      variant="light"
-                                      size="sm"
-                                      onClick={() => {
-                                        setSelectedTransactionId(null);
-                                        setNoteText('');
-                                      }}
-                                      style={{ borderRadius: '8px' }}
-                                    >
-                                      ❌ إلغاء
-                                    </Button>
+                              <div className="no-print">
+                                {selectedTransactionId === t.id ? (
+                                  <div>
+                                    <Form.Control
+                                      as="textarea"
+                                      rows={2}
+                                      placeholder="اكتب ملاحظتك هنا..."
+                                      value={noteText}
+                                      onChange={(e) => setNoteText(e.target.value)}
+                                      className="mb-2"
+                                      style={{ borderRadius: '8px', border: '2px solid #3498db' }}
+                                    />
+                                    <div className="d-flex gap-2">
+                                      <Button
+                                        variant="primary"
+                                        size="sm"
+                                        onClick={() => handleSendNote(t.id)}
+                                        style={{ borderRadius: '8px', fontWeight: 'bold' }}
+                                      >
+                                        ✅ إرسال
+                                      </Button>
+                                      <Button
+                                        variant="light"
+                                        size="sm"
+                                        onClick={() => {
+                                          setSelectedTransactionId(null);
+                                          setNoteText('');
+                                        }}
+                                        style={{ borderRadius: '8px' }}
+                                      >
+                                        ❌ إلغاء
+                                      </Button>
+                                    </div>
                                   </div>
-                                </div>
-                              ) : (
-                                <Button
-                                  variant="outline-primary"
-                                  size="sm"
-                                  onClick={() => {
-                                    setSelectedTransactionId(t.id);
-                                    setNoteText('');
-                                  }}
-                                  style={{ borderRadius: '20px' }}
-                                >
-                                  ✏️ إضافة ملاحظة
-                                </Button>
-                              )}
+                                ) : (
+                                  <Button
+                                    variant="outline-primary"
+                                    size="sm"
+                                    onClick={() => {
+                                      setSelectedTransactionId(t.id);
+                                      setNoteText('');
+                                    }}
+                                    style={{ borderRadius: '20px' }}
+                                  >
+                                    ✏️ إضافة ملاحظة
+                                  </Button>
+                                )}
+                              </div>
                             </td>
                           </tr>
                         ))}
